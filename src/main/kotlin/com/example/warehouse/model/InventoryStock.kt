@@ -33,5 +33,8 @@ data class InventoryStock(
     val product: Product,
 
     @Column(nullable = false)
-    val stockQuantity: Int
+    val stockQuantity: Int,
+
+    @Column(nullable = false)
+    val reorderThreshold: Int
 )

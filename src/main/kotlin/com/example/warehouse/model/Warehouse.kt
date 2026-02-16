@@ -9,6 +9,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 
 @Entity
@@ -33,5 +34,9 @@ data class Warehouse(
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id", nullable = false)
-    var manager: User
+    var manager: User,
+
+//    @OneToMany(fetch = FetchType.LAZY)
+//    val staff: List<Staff>
+
 )
