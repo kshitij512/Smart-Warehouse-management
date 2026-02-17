@@ -46,10 +46,19 @@ class SecurityConfig(
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
-            .csrf { it.disable() }
+            .csrf { csrf ->
+                csrf.ignoringRequestMatchers("/h2-console/**") }
             .cors {  }
+            .headers { headers ->
+                headers.frameOptions { frame -> frame.disable() }
+            }
             .authorizeHttpRequests {
-                it.requestMatchers("/api/auth/**", "/h2/**").permitAll()
+                it.requestMatchers(
+                    "/api/auth/**",
+                    "/h2-console/**",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**"
+                ).permitAll()
                 it.requestMatchers("/api/admin/**")
                     .hasRole(Role.ADMIN.name)
                 it.requestMatchers("/api/users/**")
