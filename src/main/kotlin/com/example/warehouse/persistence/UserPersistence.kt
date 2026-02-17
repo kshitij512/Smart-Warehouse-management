@@ -7,7 +7,8 @@ import java.util.Optional
 
 interface UserPersistence: JpaRepository<User, Long> {
 
-    fun findByEmail(email: String): User
+
+    fun findByEmail(email: String): User?
 
     fun existsByEmail(email: String): Boolean
 
