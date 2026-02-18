@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/admin/warehouses")
+@RequestMapping("/api/warehouses")
 class WarehouseResource(
     private val warehouseService: WarehouseService
 ) {

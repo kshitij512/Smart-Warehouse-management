@@ -57,7 +57,11 @@ class SecurityConfig(
                 it.requestMatchers("/api/products/**")
                     .hasAnyRole(Role.WAREHOUSE_MANAGER.name, Role.ADMIN.name)
                 it.requestMatchers("/api/inventory/**")
+                    .hasAnyRole(Role.WAREHOUSE_MANAGER.name)
+                it.requestMatchers("/api/warehouses/**")
                     .hasAnyRole(Role.WAREHOUSE_MANAGER.name, Role.ADMIN.name)
+                it.requestMatchers("/api/orders/**")
+                    .hasAnyRole(Role.WAREHOUSE_MANAGER.name, Role.STAFF.name)
 
                 it.anyRequest().authenticated()
             }

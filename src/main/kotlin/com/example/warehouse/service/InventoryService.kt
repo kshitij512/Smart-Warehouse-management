@@ -8,6 +8,7 @@ import com.example.warehouse.exception.BadRequestException
 import com.example.warehouse.exception.ConflictException
 import com.example.warehouse.exception.NotFoundException
 import com.example.warehouse.model.InventoryStock
+import com.example.warehouse.model.OrderItem
 import com.example.warehouse.persistence.InventoryStockPersistence
 import com.example.warehouse.persistence.ProductPersistence
 import com.example.warehouse.persistence.WarehousePersistence
@@ -77,6 +78,47 @@ class InventoryService(
         println(inventorystocklist)
         return inventorystocklist
             .map { it.toResponse() }
+    }
+
+    fun deductStock(
+        warehouseId: Long,
+        items: List<OrderItem>
+    ) {
+        items.forEach { item ->
+            val stock = inventoryStockPersistence
+                .findByWarehouseIdAndProductId(
+                    warehouseId,
+                    item.product.id
+                )
+                ?: throw IllegalStateException(
+                    "No inventory for product ${item.product.name}"
+                )
+
+            if (stock.stockQuantity < item.quantity) {
+                throw IllegalStateException(
+                    "Insufficient stock for product ${item.product.name}"
+                )
+            }
+
+            stock.stockQuantity -= item.quantity
+        }
+    }
+
+    fun rollbackStock(
+        warehouseId: Long,
+        items: List<OrderItem>
+    ) {
+        items.forEach { item ->
+            val stock = inventoryStockPersistence
+                .findByWarehouseIdAndProductId(
+                    warehouseId,
+                    item.product.id)
+                ?: throw IllegalStateException(
+                    "No inventory for product ${item.product.name}"
+                )
+
+            stock.stockQuantity += item.quantity
+        }
     }
 
 }

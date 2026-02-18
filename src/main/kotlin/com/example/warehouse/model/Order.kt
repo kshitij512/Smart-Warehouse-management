@@ -14,6 +14,7 @@ import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToMany
+import jakarta.persistence.OneToOne
 import java.time.LocalDateTime
 
 @Entity
@@ -27,6 +28,18 @@ data class Order(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id", nullable = false)
+    val warehouse: Warehouse,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    val customer: Customer,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_staff_id")
+    var assignedStaff: User? = null,
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var status: OrderStatus = OrderStatus.CREATED,
@@ -34,23 +47,21 @@ data class Order(
     @Column(nullable = false)
     var totalAmount: Double,
 
-    @Column(nullable = false)
-    var createdAt: LocalDateTime = LocalDateTime.now(),
-
-    var updatedAt: LocalDateTime? = null,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "warehouse_id", nullable = false)
-    var warehouse: Warehouse,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "assigned_staff_id")
-    var assignedStaff: User? = null,
+    @Column(nullable = false, updatable = false)
+    val createdAt: LocalDateTime = LocalDateTime.now(),
 
     @OneToMany(
         mappedBy = "order",
         cascade = [CascadeType.ALL],
         orphanRemoval = true
     )
-    var orderItems: MutableList<OrderItem> = mutableListOf()
+    val items: MutableList<OrderItem> = mutableListOf(),
+
+    @OneToOne(
+        mappedBy = "order",
+        cascade = [CascadeType.ALL],
+        orphanRemoval = true,
+        fetch = FetchType.LAZY
+    )
+    val tracking: OrderTracking? = null
 )

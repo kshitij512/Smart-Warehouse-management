@@ -13,7 +13,7 @@ import java.util.Date
 class JwtService(
     @Value("\${jwt.secret}") secret: String,
     @Value("\${jwt.access.expiration}") val accessExpMs: Long,
-    @Value("\${jwt.access.expiration}") val refreshExpMs: Long
+    @Value("\${jwt.refresh.expiration}") val refreshExpMs: Long
 ) {
 
     private val key = Keys.hmacShaKeyFor(secret.toByteArray())
