@@ -49,11 +49,16 @@ class SecurityConfig(
             .csrf { it.disable() }
             .cors {  }
             .authorizeHttpRequests {
-                it.requestMatchers("/api/auth/**", "/h2/**").permitAll()
+                it.requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
                 it.requestMatchers("/api/admin/**")
                     .hasRole(Role.ADMIN.name)
                 it.requestMatchers("/api/users/**")
                     .hasAnyRole(Role.ADMIN.name)
+                it.requestMatchers("/api/products/**")
+                    .hasAnyRole(Role.WAREHOUSE_MANAGER.name, Role.ADMIN.name)
+                it.requestMatchers("/api/inventory/**")
+                    .hasAnyRole(Role.WAREHOUSE_MANAGER.name, Role.ADMIN.name)
+
                 it.anyRequest().authenticated()
             }
             .sessionManagement {
@@ -61,6 +66,11 @@ class SecurityConfig(
             }
             .addFilterBefore(jwtAuthFilter,
                 UsernamePasswordAuthenticationFilter::class.java)
+            .headers { headers ->
+                headers.frameOptions { frame ->
+                    frame.disable()
+                }
+            }
         return http.build()
     }
 

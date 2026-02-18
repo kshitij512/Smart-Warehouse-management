@@ -1,11 +1,12 @@
 package com.example.warehouse.dto
 
+import java.time.LocalDateTime
 
 
 data class ProductResponse(
     val id: Long,
     val sku: String,
-    val name: String,
-    val price: Double,
-    val reorderThreshold: Int
+    var name: String,
+    var price: Double,
+    val createdAt: LocalDateTime
 )

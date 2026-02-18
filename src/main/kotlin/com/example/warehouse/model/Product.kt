@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
+import java.time.LocalDateTime
 
 @Entity
 @Table(
@@ -28,6 +29,6 @@ data class Product(
     @Column(nullable = false)
     var price: Double,
 
-    @Column(nullable = false)
-    var reorderThreshold: Int
+    @Column(nullable = false, updatable = false)
+    var createdAt: LocalDateTime = LocalDateTime.now()
 )

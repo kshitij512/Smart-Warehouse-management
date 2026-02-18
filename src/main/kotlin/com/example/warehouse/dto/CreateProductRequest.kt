@@ -14,6 +14,4 @@ data class CreateProductRequest(
     @field:Positive
     val price: Double,
 
-    @field:Positive
-    val reorderThreshold: Int
 )

@@ -15,6 +15,9 @@ data class CreateWarehouseRequest(
     @field:Positive
     val capacity: Int,
 
+    @field:NotBlank
+    val code: String,
+
     @field:NotNull
     val managerId: Long
 )

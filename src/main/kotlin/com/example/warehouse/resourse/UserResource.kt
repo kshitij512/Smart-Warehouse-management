@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/admin/users")
-class AdminUserController(
+class UserResource(
     private val adminUserService: AdminUserService
 ) {
 

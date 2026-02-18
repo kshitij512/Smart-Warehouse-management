@@ -9,15 +9,5 @@ interface ProductPersistence: JpaRepository<Product, Long> {
 
     fun existsBySku(sku: String): Boolean
 
-    @Query(
-        """
-        SELECT p FROM Product p 
-        WHERE p.reorderThreshold > (
-            SELECT COALESCE(SUM(s.stockQuantity), 0)
-            FROM InventoryStock s
-            WHERE s.product = p
-        )
-        """
-    )
-    fun findProductsBelowReorderThreshold(): List<Product>
+
 }

@@ -2,6 +2,8 @@ package com.example.warehouse.service
 
 import com.example.warehouse.dto.CreateUserRequest
 import com.example.warehouse.dto.UserResponse
+import com.example.warehouse.exception.ConflictException
+import com.example.warehouse.exception.NotFoundException
 import com.example.warehouse.model.Role
 import com.example.warehouse.model.User
 import com.example.warehouse.persistence.UserPersistence
@@ -19,11 +21,11 @@ class AdminUserService(
      fun createUser(request: CreateUserRequest): UserResponse {
 
         if (request.role == Role.ADMIN) {
-            throw IllegalArgumentException("Cannot create ADMIN users")
+            throw ConflictException("Cannot create ADMIN users")
         }
 
         if (userPersistence.existsByEmail(request.email)) {
-            throw IllegalArgumentException("Email already exists")
+            throw ConflictException("Email already exists")
         }
 
         val user = User(
@@ -44,18 +46,18 @@ class AdminUserService(
     fun getUserById(id: Long): UserResponse =
         userPersistence.findByIdOrNull(id)
             ?.toResponse()
-            ?: throw EntityNotFoundException("User not found")
+            ?: throw NotFoundException("User not found")
 
     fun enableUser(id: Long) {
         val user = userPersistence.findByIdOrNull(id)
-            ?: throw EntityNotFoundException("User not found")
+            ?: throw NotFoundException("User not found")
         user.enabled = true
         userPersistence.save(user)
     }
 
      fun disableUser(id: Long) {
         val user = userPersistence.findByIdOrNull(id)
-            ?: throw EntityNotFoundException("User Not Found")
+            ?: throw NotFoundException("User Not Found")
         user.enabled = false
         userPersistence.save(user)
     }

@@ -29,6 +29,9 @@ data class Warehouse(
     @Column(nullable = false)
     var location: String,
 
+    @Column(nullable = false, unique = true)
+    var code: String,
+
     @Column(nullable = false)
     var capacity: Int,
 
@@ -36,7 +39,6 @@ data class Warehouse(
     @JoinColumn(name = "manager_id", nullable = false)
     var manager: User,
 
-//    @OneToMany(fetch = FetchType.LAZY)
-//    val staff: List<Staff>
+
 
 )
