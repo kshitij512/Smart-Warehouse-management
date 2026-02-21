@@ -32,9 +32,10 @@ data class Order(
     @JoinColumn(name = "warehouse_id", nullable = false)
     val warehouse: Warehouse,
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST])
     @JoinColumn(name = "customer_id", nullable = false)
     val customer: Customer,
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_staff_id")

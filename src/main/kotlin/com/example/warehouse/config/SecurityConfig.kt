@@ -49,7 +49,7 @@ class SecurityConfig(
             .csrf { it.disable() }
             .cors {  }
             .authorizeHttpRequests {
-                it.requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
+                it.requestMatchers("/api/auth/**", "/h2-console/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 it.requestMatchers("/api/admin/**")
                     .hasRole(Role.ADMIN.name)
                 it.requestMatchers("/api/users/**")
@@ -57,7 +57,7 @@ class SecurityConfig(
                 it.requestMatchers("/api/products/**")
                     .hasAnyRole(Role.WAREHOUSE_MANAGER.name, Role.ADMIN.name)
                 it.requestMatchers("/api/inventory/**")
-                    .hasAnyRole(Role.WAREHOUSE_MANAGER.name)
+                    .hasAnyRole(Role.WAREHOUSE_MANAGER.name, Role.ADMIN.name)
                 it.requestMatchers("/api/warehouses/**")
                     .hasAnyRole(Role.WAREHOUSE_MANAGER.name, Role.ADMIN.name)
                 it.requestMatchers("/api/orders/**")

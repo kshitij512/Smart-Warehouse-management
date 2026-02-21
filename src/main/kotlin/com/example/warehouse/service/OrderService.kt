@@ -1,20 +1,8 @@
 package com.example.warehouse.service
 
-import com.example.warehouse.dto.CreateOrderRequest
-import com.example.warehouse.dto.OrderItemResponse
-import com.example.warehouse.dto.OrderResponse
-import com.example.warehouse.dto.OrderTrackingResponse
-import com.example.warehouse.model.Customer
-import com.example.warehouse.model.Order
-import com.example.warehouse.model.OrderItem
-import com.example.warehouse.model.OrderStatus
-import com.example.warehouse.model.OrderTracking
-import com.example.warehouse.persistence.OrderItemPersistence
-import com.example.warehouse.persistence.OrderPersistence
-import com.example.warehouse.persistence.OrderTrackingPersistence
-import com.example.warehouse.persistence.ProductPersistence
-import com.example.warehouse.persistence.UserPersistence
-import com.example.warehouse.persistence.WarehousePersistence
+import com.example.warehouse.dto.*
+import com.example.warehouse.model.*
+import com.example.warehouse.persistence.*
 import jakarta.persistence.EntityNotFoundException
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -33,6 +21,24 @@ class OrderService(
     private val orderTrackingPersistence: OrderTrackingPersistence
 ) {
 
+    /* ============================================================
+       🚀 STATUS WORKFLOW ENGINE (STRICT TRANSITIONS)
+       ============================================================ */
+
+    private val validTransitions = mapOf(
+        OrderStatus.CREATED to listOf(OrderStatus.CONFIRMED, OrderStatus.CANCELLED),
+        OrderStatus.CONFIRMED to listOf(OrderStatus.PICKING, OrderStatus.CANCELLED),
+        OrderStatus.PICKING to listOf(OrderStatus.PACKED, OrderStatus.CANCELLED),
+        OrderStatus.PACKED to listOf(OrderStatus.SHIPPED),
+        OrderStatus.SHIPPED to listOf(OrderStatus.DELIVERED),
+        OrderStatus.DELIVERED to emptyList(),
+        OrderStatus.CANCELLED to emptyList()
+    )
+
+    /* ============================================================
+       CREATE ORDER
+       ============================================================ */
+
     fun createOrder(request: CreateOrderRequest): OrderResponse {
 
         val warehouse = warehousePersistence.findByIdOrNull(request.warehouseId)
@@ -43,7 +49,7 @@ class OrderService(
             customer = Customer(
                 name = request.customerName,
                 phone = request.customerPhone,
-                email = request.customerPhone,
+                email = request.customerEmail,
                 address = request.customerAddress
             ),
             status = OrderStatus.CREATED,
@@ -55,6 +61,7 @@ class OrderService(
         var total = 0.0
 
         request.items.forEach {
+
             val product = productPersistence.findByIdOrNull(it.productId)
                 ?: throw EntityNotFoundException("Product not found")
 
@@ -72,40 +79,68 @@ class OrderService(
 
         order.totalAmount = total
 
-        orderTrackingPersistence.save(
-            OrderTracking(
-                order = order,
-                createdAt = LocalDateTime.now()
-            )
+        val tracking = OrderTracking(
+            order = order,
+            currentStatus = OrderStatus.CREATED,
+            createdAt = LocalDateTime.now(),
+            confirmedAt = null,
+            pickingAt = null,
+            packedAt = null,
+            shippedAt = null,
+            deliveredAt = null,
+            cancelledAt = null
         )
 
-        return order.toResponse()
+        orderTrackingPersistence.save(tracking)
+
+        return order.toResponse(validTransitions)
     }
+
+    /* ============================================================
+       GETTERS
+       ============================================================ */
 
     fun getById(orderId: Long): OrderResponse =
         orderPersistence.findByIdOrNull(orderId)
-            ?.toResponse()
+            ?.toResponse(validTransitions)
             ?: throw EntityNotFoundException("Order not found")
 
     fun getByWarehouse(warehouseId: Long): List<OrderResponse> =
         orderPersistence.findAllByWarehouseId(warehouseId)
-            .map { it.toResponse() }
+            .map { it.toResponse(validTransitions) }
 
     fun getByStatus(status: OrderStatus): List<OrderResponse> =
         orderPersistence.findAllByStatus(status)
-            .map { it.toResponse() }
+            .map { it.toResponse(validTransitions) }
+
+    /* ============================================================
+       ASSIGN STAFF
+       ============================================================ */
 
     fun assignStaff(orderId: Long, staffId: Long) {
+
         val order = orderPersistence.findByIdOrNull(orderId)
             ?: throw EntityNotFoundException("Order not found")
+
+        if (order.assignedStaff != null) {
+            throw IllegalStateException("Staff already assigned to this order")
+        }
 
         val staff = userPersistence.findByIdOrNull(staffId)
             ?: throw EntityNotFoundException("Staff not found")
 
+        if (staff.role != Role.STAFF) {
+            throw IllegalStateException("Only STAFF can be assigned")
+        }
+
         order.assignedStaff = staff
     }
 
-    fun updateStatus(orderId: Long, status: OrderStatus) {
+    /* ============================================================
+       🔥 STRICT WORKFLOW STATUS UPDATE
+       ============================================================ */
+
+    fun updateStatus(orderId: Long, newStatus: OrderStatus) {
 
         val order = orderPersistence.findByIdOrNull(orderId)
             ?: throw EntityNotFoundException("Order not found")
@@ -113,56 +148,80 @@ class OrderService(
         val tracking = orderTrackingPersistence.findByOrderId(orderId)
             ?: throw EntityNotFoundException("Tracking not found")
 
-        // 🔐 Prevent invalid transitions
-        if (order.status == OrderStatus.CANCELLED ||
-            order.status == OrderStatus.DELIVERED
-        ) {
-            throw IllegalStateException("Order already finalized")
+        val currentStatus = order.status
+
+        // 🚫 Prevent illegal transitions
+        val allowedTransitions = validTransitions[currentStatus]
+            ?: emptyList()
+
+        if (!allowedTransitions.contains(newStatus)) {
+            throw IllegalStateException(
+                "Invalid status transition: $currentStatus → $newStatus"
+            )
         }
 
-        when (status) {
+        when (newStatus) {
 
             OrderStatus.CONFIRMED -> {
-                inventoryService.deductStock(
-                    order.warehouse.id,
-                    order.items
-                )
+                inventoryService.deductStock(order.warehouse.id, order.items)
                 tracking.confirmedAt = LocalDateTime.now()
             }
 
             OrderStatus.CANCELLED -> {
-                // rollback only if stock was deducted
-                if (order.status != OrderStatus.CREATED) {
-                    inventoryService.rollbackStock(
-                        order.warehouse.id,
-                        order.items
-                    )
+                if (currentStatus != OrderStatus.CREATED) {
+                    inventoryService.rollbackStock(order.warehouse.id, order.items)
                 }
                 tracking.cancelledAt = LocalDateTime.now()
             }
 
-            OrderStatus.PICKING -> tracking.pickingAt = LocalDateTime.now()
-            OrderStatus.PACKED -> tracking.packedAt = LocalDateTime.now()
-            OrderStatus.SHIPPED -> tracking.shippedAt = LocalDateTime.now()
-            OrderStatus.DELIVERED -> tracking.deliveredAt = LocalDateTime.now()
+            OrderStatus.PICKING ->
+                tracking.pickingAt = LocalDateTime.now()
+
+            OrderStatus.PACKED ->
+                tracking.packedAt = LocalDateTime.now()
+
+            OrderStatus.SHIPPED ->
+                tracking.shippedAt = LocalDateTime.now()
+
+            OrderStatus.DELIVERED ->
+                tracking.deliveredAt = LocalDateTime.now()
+
             else -> {}
         }
 
-        order.status = status
+        // ✅ Keep both in sync
+        tracking.currentStatus = newStatus
+        order.status = newStatus
     }
 
+    /* ============================================================
+       TRACKING FETCH (SAFE)
+       ============================================================ */
 
-    fun getTracking(orderId: Long): OrderTrackingResponse =
-        orderTrackingPersistence.findByOrderId(orderId)
-            ?.toResponse()
-            ?: throw EntityNotFoundException("Tracking not found")
+    fun getTracking(orderId: Long): OrderTrackingResponse {
+
+        val tracking = orderTrackingPersistence.findByOrderId(orderId)
+            ?: return OrderTrackingResponse(
+                currentStatus = null,
+                createdAt = null,
+                confirmedAt = null,
+                pickingAt = null,
+                packedAt = null,
+                shippedAt = null,
+                deliveredAt = null,
+                cancelledAt = null
+            )
+
+        return tracking.toResponse()
+    }
 }
 
-
-
-
-
-fun Order.toResponse(): OrderResponse =
+/* ============================================================
+   MAPPERS
+   ============================================================ */
+fun Order.toResponse(
+    validTransitions: Map<OrderStatus, List<OrderStatus>>
+): OrderResponse =
     OrderResponse(
         id = id,
         warehouseId = warehouse.id,
@@ -171,8 +230,11 @@ fun Order.toResponse(): OrderResponse =
         status = status,
         assignedStaffName = assignedStaff?.name,
         createdAt = createdAt,
-        items = items.map { it.toResponse() } as MutableList<OrderItemResponse>
+        items = items.map { it.toResponse() }.toMutableList(),
+        allowedTransitions = validTransitions[status] ?: emptyList()
     )
+
+
 
 fun OrderItem.toResponse(): OrderItemResponse =
     OrderItemResponse(
@@ -183,11 +245,12 @@ fun OrderItem.toResponse(): OrderItemResponse =
 
 fun OrderTracking.toResponse(): OrderTrackingResponse =
     OrderTrackingResponse(
-        createdAt,
-        confirmedAt,
-        pickingAt,
-        packedAt,
-        shippedAt,
-        deliveredAt,
-        cancelledAt
+        currentStatus = currentStatus,
+        createdAt = createdAt,
+        confirmedAt = confirmedAt,
+        pickingAt = pickingAt,
+        packedAt = packedAt,
+        shippedAt = shippedAt,
+        deliveredAt = deliveredAt,
+        cancelledAt = cancelledAt
     )

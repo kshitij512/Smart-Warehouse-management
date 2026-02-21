@@ -7,12 +7,12 @@ import java.time.LocalDateTime
 
 data class OrderResponse(
     val id: Long,
-    val status: OrderStatus,
+    val warehouseId: Long,
     val customerName: String,
     val totalAmount: Double,
-    val warehouseId: Long,
+    val status: OrderStatus,
     val assignedStaffName: String?,
     val createdAt: LocalDateTime,
-    val items: MutableList<OrderItemResponse>
-
+    val items: List<OrderItemResponse>, // ✅ FIXED
+    val allowedTransitions: List<OrderStatus>
 )

@@ -1,6 +1,7 @@
 package com.example.warehouse.config;
 
 
+import com.example.warehouse.exception.JWTExpiredException
 import com.example.warehouse.service.JwtService
 import com.example.warehouse.service.UserService
 import jakarta.servlet.FilterChain
@@ -22,18 +23,36 @@ class JwtAuthFilter(
         filterChain: FilterChain
     ) {
        val header = request.getHeader("Authorization")
-        if(header != null && header.startsWith("Bearer ")){
-            val token = header.substring(7)
-            val username = jwtService.extractUsername(token)
+        try {
+            if(header != null && header.startsWith("Bearer ")){
+                val token = header.substring(7)
+                val username = jwtService.extractUsername(token)
 
-            val userDetails = userDetailsService.loadUserByUsername(username)
+                val userDetails = userDetailsService.loadUserByUsername(username)
 
-            val auth = UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.authorities
-            )
-            SecurityContextHolder.getContext().authentication = auth
+                val auth = UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.authorities
+                )
+                SecurityContextHolder.getContext().authentication = auth
+            }
+            filterChain.doFilter(request, response)
+        } catch (e: JWTExpiredException) {
+            sendError(response, e.message)
         }
-        filterChain.doFilter(request, response)
+    }
+
+    private fun sendError(response: HttpServletResponse, message: String) {
+        response.status = HttpServletResponse.SC_UNAUTHORIZED
+        response.contentType = "application/json"
+        response.writer.write(
+            """
+            {
+              "status": 401,
+              "error": "Unauthorized",
+              "message": "$message"
+            }
+            """.trimIndent()
+        )
     }
 
 }
