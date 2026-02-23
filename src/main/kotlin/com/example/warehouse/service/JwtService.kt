@@ -63,8 +63,8 @@ class JwtService(
 
         val cookie = Cookie("refreshToken", token)
         cookie.isHttpOnly = true
-        cookie.path = "api/auth"
-        cookie.maxAge = refreshExpMs.toInt()
+        cookie.path = "/api/auth"
+        cookie.maxAge = (refreshExpMs / 1000).toInt()
         response.addCookie(cookie)
 
         log.info("Refresh token cookie added successfully")
@@ -80,7 +80,7 @@ class JwtService(
 
         val cookie = Cookie("refreshToken", "")
         cookie.isHttpOnly = true
-        cookie.path = "api/auth"
+        cookie.path = "/api/auth"
         cookie.maxAge = 0
         response.addCookie(cookie)
 
